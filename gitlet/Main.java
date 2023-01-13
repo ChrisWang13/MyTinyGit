@@ -18,11 +18,13 @@ public class Main {
         }
         String firstArg = args[0];
         switch (firstArg) {
+            // java gitlet.Main init
             case "init":
-                // TODO: handle the `init` command
+                Repository.init();
                 break;
             case "add":
-                // TODO: handle the `add [filename]` command
+                // java gitlet.Main add a.file
+                Repository.add(args[1]);
                 break;
             // TODO: FILL THE REST IN
         }

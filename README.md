@@ -34,12 +34,24 @@ V5 Commit (Hello.java): Hello.java → v5, Friend.java → v3, Egg.java → v3
 
 ## Classes and Data Structures
 
-### ` Commit implements Serializable`
 
+### `git init`
+1. Check if `.gitlet` file exists in `git init`
+2. Init all folder with `mkdir`
+3. TODO: make initial commit
+
+### `Blob implements Serializable`
 #### Fields
+1. `byte[] contents`
+2. `File file`
 
-1. Field 1
-2. Field 2
+### `git add`
+1. Staging area is a list of added blobs
+2. Place to store is in staging folder by calling `writeObject`
+3. ALl methods in `Staging` is static(?)
+
+
+
 
 
 
