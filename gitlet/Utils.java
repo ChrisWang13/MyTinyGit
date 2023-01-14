@@ -36,7 +36,9 @@ class Utils {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-1");
             for (Object val : vals) {
-                if (val instanceof byte[]) {
+                if (val instanceof Byte) {
+                    md.update((Byte) val);
+                } else if (val instanceof byte[]) {
                     md.update((byte[]) val);
                 } else if (val instanceof String) {
                     md.update(((String) val).getBytes(StandardCharsets.UTF_8));
@@ -122,8 +124,10 @@ class Utils {
                 new BufferedOutputStream(Files.newOutputStream(file.toPath()));
             for (Object obj : contents) {
                 if (obj instanceof Byte) {
-                    str.write((Byte)obj);
-                } else {
+                    str.write((Byte) obj);
+                } else if (obj instanceof byte[]) {
+                    str.write((byte[]) obj);
+                }else {
                     str.write(((String) obj).getBytes(StandardCharsets.UTF_8));
                 }
             }

@@ -26,7 +26,12 @@ public class Main {
                 // java gitlet.Main add a.file
                 Repository.add(args[1]);
                 break;
-            // TODO: FILL THE REST IN
+            case "commit":
+                if (args[1] == null) {
+                    System.out.println("Please enter a commit message.");
+                }
+                Repository.commit(args[1]);
+                break;
         }
     }
 }

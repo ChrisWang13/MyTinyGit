@@ -2,8 +2,6 @@ package gitlet;
 
 import java.io.File;
 import java.io.Serializable;
-import java.util.*;
-
 
 /**
  * Blob is an abstraction above basic file metadata.
@@ -13,11 +11,14 @@ import java.util.*;
 
 public class Blob implements Serializable {
 
-    /** One blob match with one file */
-    File file;
+    /** Specifier of this blob, by SHA-1 hashing. */
+    public String blobID;
+
+    /** One blob match with one file. */
+    private File file;
 
     /** Path of this file in fileName.getPath(). */
-    String filePath;
+    private String filePath;
 
     /** Byte representation of file. */
     private byte[] contents;
@@ -26,13 +27,14 @@ public class Blob implements Serializable {
         this.file = file;
         this.filePath = file.getPath();
         this.contents = Utils.readContents(file);
+        this.blobID = Utils.sha1(filePath, getFileName());
+    }
+
+    public String getBlobID() {
+        return blobID;
     }
 
     public String getFileName() {
-        if (file.isDirectory()) {
-            System.out.println("This is a directory! Not a file!");
-            System.exit(0);
-        }
         return file.getName();
     }
 

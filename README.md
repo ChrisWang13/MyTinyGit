@@ -48,7 +48,8 @@ V5 Commit (Hello.java): Hello.java → v5, Friend.java → v3, Egg.java → v3
 ### `git add`
 1. Staging area is a list of added blobs
 2. Place to store is in staging folder by calling `writeObject`
-3. ALl methods in `Staging` is static(?)
+3. Add persistence file to record  staging history
+
 
 
 

@@ -1,33 +1,28 @@
 package gitlet;
 
 import java.io.File;
+import java.io.Serializable;
 import java.util.*;
 
-import gitlet.Repository.*;
+import static gitlet.Repository.*;
 
-import static gitlet.Repository.STAGING_DIR;
-import static gitlet.Utils.serialize;
-
-
-/**
- * All methods in Staging should be static
+/** Staging use ADD_STAGE file to persist staging info.
+ *
  */
-
-public class Staging {
+public class Staging implements Serializable {
 
     /** Shared list to store blobs, add file to storeBlobs in Staging area. */
-    static List<Blob> storeBlobs = new ArrayList<>();
+    public List<Blob> storeBlobs = new ArrayList<>();
 
     /** Save blob to .gitlet/staging/blob.getFileName() */
-    public static void saveBlob2Staging(Blob blob) {
+    public void saveBlob2Staging(Blob blob) {
         storeBlobs.add(blob);
-        String newFileName = blob.getFileName();
+        // Write staged file to staging folder.
+        // blobID is fileName and filePath, used only for this file.
+        // Overwrite entry if already staged
+        String newFileName = blob.blobID;
         File newFile = Utils.join(STAGING_DIR, newFileName);
-        Utils.writeObject(newFile, serialize(blob));
+        Utils.writeObject(newFile, blob);
     }
 
-    /** Clear the staging area after one complete commit. */
-    public static void clearStaging() {
-        storeBlobs.clear();
-    }
 }
