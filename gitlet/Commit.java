@@ -75,8 +75,17 @@ public class Commit implements Serializable {
         return timeStamp;
     }
 
+    /** Return private commit message. */
     public String getMessage() {
         return message;
+    }
+
+    /** Helper function to print log info of this commit. */
+    public void printLogInfo() {
+        System.out.println("===");
+        System.out.println("commit " + this.getID());
+        System.out.println("Date: " + this.getTimeStamp());
+        System.out.println(this.getMessage());
     }
 
 }

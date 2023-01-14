@@ -25,4 +25,10 @@ public class Staging implements Serializable {
         Utils.writeObject(newFile, blob);
     }
 
+    /** Remove Staging area and write it to ADDSTAGE_PTR for persistence. */
+    public void removeStagingArea() {
+        storeBlobs.clear();
+        // Save cleared storeBlob list to ADDSTAGE_PTR
+        Utils.writeObject(ADDSTAGE_PTR, this);
+    }
 }

@@ -32,6 +32,9 @@ public class Main {
                 }
                 Repository.commit(args[1]);
                 break;
+            case "log":
+                Repository.log();
+                break;
         }
     }
 }

@@ -58,8 +58,6 @@ public class Repository {
         // Initial commit
         Commit commit = new Commit();
         commit.saveCommit();
-        // Create master head
-        Utils.writeObject(MASTER_PTR, commit);
     }
 
     /** gitlet add function */
@@ -89,9 +87,8 @@ public class Repository {
             System.exit(0);
         }
         // Remove Staging area
-        oldStage.storeBlobs.clear();
-        Utils.writeObject(ADDSTAGE_PTR, oldStage);
-        // Record previous commit and init new commit
+        oldStage.removeStagingArea();
+        // Record previous commit and create new commit
         Commit prevCommit = Utils.readObject(MASTER_PTR, Commit.class);
         String id = prevCommit.getID();
         List<String> parents = new ArrayList<>();
@@ -99,4 +96,23 @@ public class Repository {
         Commit newCommit = new Commit(parents, message);
         newCommit.saveCommit();
     }
+
+    /** gitlet log function. */
+    public static void log() {
+        Commit preCommit = Utils.readObject(MASTER_PTR, Commit.class);
+        // Get parentID and open file iteratively
+        while (preCommit.getParentID().size() == 1) {
+            // Print info
+            preCommit.printLogInfo();
+            // Update new parent
+            String pid = preCommit.getParentID().get(0);
+            File parent = join(OBJ_DIR, pid);
+            preCommit = Utils.readObject(parent, Commit.class);
+        }
+        if (preCommit.getParentID().size() == 0) {
+            // Only initial commit, print info
+            preCommit.printLogInfo();
+        }
+     }
+
 }
