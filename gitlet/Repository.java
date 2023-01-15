@@ -19,9 +19,9 @@ public class Repository {
      *      |     |--commit
             |--refs
                   |--heads
-     *              |--master (File, save Commit info)
-     *              |--OtherBranchName (File, save Commit info)
-     *            |--addStage (File save Staging info)
+     *              |--master (File with saved Commit info)
+     *              |--OtherBranchName (File with saved Commit info)
+     *            |--addStage (File with saved Staging info)
      *      |--HEAD (File, read current head of branch) (refs/heads/branch?)
      *      |--staging (staged folder file, real git put staged blobs in objects folder)
      *
@@ -38,11 +38,15 @@ public class Repository {
     public static final File STAGING_DIR = join(GITLET_DIR, "staging");
 
     /** Pointer file to record last operation. */
+    // TODO: Currently HEAD is always MASTER_PTR, branch is not implemented.
     public static final File MASTER_PTR = join(HEADS_DIR, "master");
-    public static final File ADDSTAGE_PTR = join(REFS_DIR, "staging");
+    public static final File ADDSTAGE_PTR = join(REFS_DIR, "addstage");
 
-    /** Read from staging file to check stage status. */
+    /** Read from ADDSTAGE_PTR file to check Staging status. */
     public static Staging curStage = new Staging();
+
+    /** Read from HEAD file to check Commit status. */
+    public static Commit curCommit = new Commit();
 
     /** gitlet init function */
     public static void init() {
@@ -55,64 +59,98 @@ public class Repository {
         REFS_DIR.mkdirs();
         HEADS_DIR.mkdirs();
         STAGING_DIR.mkdirs();
-        // Initial commit
-        Commit commit = new Commit();
-        commit.saveCommit();
+        // Init commit and empty Staging area
+        curCommit.saveCommit();
+        curStage.saveStaging();
+    }
+
+    /** Helper function to return Staging from persistent ADDSTAGE_PTR. */
+    private static Staging getCurStage() {
+        return Utils.readObject(ADDSTAGE_PTR, Staging.class);
+    }
+
+    /** Helper function to return file reference with fileName(String). */
+    private static File getFileFromCWD(String fileName) {
+        File file = join(CWD, fileName);
+        // File does not exist
+        if (!file.exists()) {
+            System.out.println("File does not exist.");
+            System.exit(0);
+        }
+        return file;
+    }
+
+    /** Helper function to return Staging from persistent ADDSTAGE_PTR. */
+    private static Commit getCurCommit() {
+        return Utils.readObject(MASTER_PTR, Commit.class);
     }
 
     /** gitlet add function */
     public static void add(String fileName) {
-        File addFile = join(CWD, fileName);
-        // File does not exist
-        if (!addFile.exists()) {
-            System.out.println("File does not exist.");
-            System.exit(0);
-        }
-        // Create matched blob
+        File addFile = getFileFromCWD(fileName);
+        // Create matched blob with file
         Blob blob = new Blob(addFile);
-        // Previous saved list<Blob>
-        if (ADDSTAGE_PTR.exists()) {
-            Staging oldStage = Utils.readObject(ADDSTAGE_PTR, Staging.class);
-            curStage.storeBlobs = oldStage.storeBlobs;
-        }
+        curStage = getCurStage();
         curStage.saveBlob2Staging(blob);
-        Utils.writeObject(ADDSTAGE_PTR, curStage);
     }
 
     /** gitlet commit function. */
     public static void commit(String message) {
-        Staging oldStage = Utils.readObject(ADDSTAGE_PTR, Staging.class);
-        if (oldStage.storeBlobs.isEmpty()) {
+        curStage = getCurStage();
+        if (curStage.IsStagingEmpty()) {
             System.out.println("No changes added to the commit.");
             System.exit(0);
         }
-        // Remove Staging area
-        oldStage.removeStagingArea();
-        // Record previous commit and create new commit
-        Commit prevCommit = Utils.readObject(MASTER_PTR, Commit.class);
-        String id = prevCommit.getID();
-        List<String> parents = new ArrayList<>();
-        parents.add(id);
-        Commit newCommit = new Commit(parents, message);
+        // create new commit with init info: parent Commit id
+        Commit curCommit = getCurCommit();
+        String parentID = curCommit.getID();
+        Commit newCommit = new Commit(parentID, message);
+        // Save Staging area info to this new Commit
+        newCommit.saveStaging2Commit(curStage);
         newCommit.saveCommit();
+        // Remove Staging area
+        curStage.rmStagingArea();
     }
 
     /** gitlet log function. */
     public static void log() {
-        Commit preCommit = Utils.readObject(MASTER_PTR, Commit.class);
+        Commit curCommit = getCurCommit();
         // Get parentID and open file iteratively
-        while (preCommit.getParentID().size() == 1) {
+        while (!curCommit.getFirstParentID().isEmpty()) {
             // Print info
-            preCommit.printLogInfo();
-            // Update new parent
-            String pid = preCommit.getParentID().get(0);
+            curCommit.printLogInfo();
+            // Update curCommit with parent id file in object folder
+            String pid = curCommit.getFirstParentID();
             File parent = join(OBJ_DIR, pid);
-            preCommit = Utils.readObject(parent, Commit.class);
+            curCommit = Utils.readObject(parent, Commit.class);
         }
-        if (preCommit.getParentID().size() == 0) {
+        if (curCommit.getFirstParentID().isEmpty()) {
             // Only initial commit, print info
-            preCommit.printLogInfo();
+            curCommit.printLogInfo();
         }
+     }
+
+     /** gitlet rm function. */
+     public static void rm(String fileName) {
+         File rmFile = getFileFromCWD(fileName);
+         String filePath = rmFile.getPath();
+         curStage = getCurStage();
+         curCommit = getCurCommit();
+         // 1. Remove file from Staging area if in current Staging
+         if (curStage.IsFileInStaging(filePath)) {
+             curStage.rmFileInStaging(filePath);
+         }
+         // TODO: 2. Remove file if it is in current commit (tracked in MASTER_PTR)
+         else if(curCommit.IsFileInCommit(filePath)) {
+             curCommit.rmFileInCommit(filePath);
+             // Delete this file
+             rmFile.delete();
+         }
+         // 3. This file is neither staged nor tracked by this commit
+         else {
+             System.out.println("No reason to remove the file.");
+             System.exit(0);
+         }
      }
 
 }

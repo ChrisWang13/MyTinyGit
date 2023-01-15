@@ -33,6 +33,7 @@ V5 Commit (Hello.java): Hello.java → v5, Friend.java → v3, Egg.java → v3
 
 
 ## Classes and Data Structures
+make check TESTER_FLAGS="--verbose"
 
 
 ### `git init`
@@ -50,6 +51,20 @@ V5 Commit (Hello.java): Hello.java → v5, Friend.java → v3, Egg.java → v3
 2. Place to store is in staging folder by calling `writeObject`
 3. Add persistence file to record  staging history
 
+### Refractor (2023.1.14 Update)
+1. In `Staging` class, refractor storeBlobs from `List` that store `Blob` object to HashMap
+that map between <Blob pathName, SHA1-hash of Blob>. Easy to delete!
+2. Still need Blob to quick read byte for diff or quick view file contents
+```java
+/** This is buggy! Since these Blob objects are diffent!! */
+/** Shared list to store blobs, add or remove file to storeBlobs in Staging area. */
+    public List<Blob> storeBlobs = new ArrayList<>();
+/** Remove file in storeBlob list. */
+    public void rmFileInStaging(File fileName) {
+        Blob blob = new Blob(fileName);
+        storeBlobs.remove(blob);
+    }
+```
 
 
 

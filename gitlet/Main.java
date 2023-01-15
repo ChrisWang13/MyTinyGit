@@ -27,13 +27,13 @@ public class Main {
                 Repository.add(args[1]);
                 break;
             case "commit":
-                if (args[1] == null) {
-                    System.out.println("Please enter a commit message.");
-                }
                 Repository.commit(args[1]);
                 break;
             case "log":
                 Repository.log();
+                break;
+            case "rm":
+                Repository.rm(args[1]);
                 break;
         }
     }

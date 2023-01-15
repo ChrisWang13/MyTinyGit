@@ -27,15 +27,15 @@ public class Blob implements Serializable {
         this.file = file;
         this.filePath = file.getPath();
         this.contents = Utils.readContents(file);
-        this.blobID = Utils.sha1(filePath, getFileName());
+        this.blobID = Utils.sha1(contents.toString(), filePath);
     }
 
     public String getBlobID() {
         return blobID;
     }
 
-    public String getFileName() {
-        return file.getName();
+    public String getFilePath() {
+        return filePath;
     }
 
 }

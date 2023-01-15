@@ -24,38 +24,48 @@ public class Commit implements Serializable {
     /** String format of current time. */
     private String timeStamp;
 
-    /** A commit might have several parents, select which parent base on ID. */
-    private List<String> parent = new ArrayList<>();
+    /** First parent commitID for logging. */
+    private String firstParentID;
 
-    /** Create initial commit with default message. */
+    /** Second parent commitID found in merge commits. */
+    private String mergeParentID;
+
+    /** Copy of storeBlob in Staging, to keep track of Blobs(files) in this commit. */
+    public Map<String, String> storeBlobs = new HashMap<>();
+
+
+     /** Create initial commit with default message. */
     public Commit() {
         // Create Unix Epoch time
-        this.timeStamp = "Date: " + dateToTimeStamp(new Date(0));
+        this.firstParentID = new String();
+        this.mergeParentID = new String();
+        this.timeStamp = dateToTimeStamp(new Date(0));
         this.ID = setID();
     }
 
     /** Create new commit with designed parentsID and message. */
-    public Commit(List<String> parent, String message) {
+    public Commit(String parentID, String message) {
         this.message = message;
-        this.parent = parent;
-        this.timeStamp = "Date: " + dateToTimeStamp(new Date());
+        this.firstParentID = new String(parentID);
+        this.mergeParentID = new String();
+        this.timeStamp = dateToTimeStamp(new Date());
         this.ID = setID();
     }
 
     /** Formatter helper function to return String format of timeStamp. */
     private String dateToTimeStamp(Date date) {
-        SimpleDateFormat dateFormat= new SimpleDateFormat("EEE MMM d HH:mm:ss yyyy");
+        SimpleDateFormat dateFormat = new SimpleDateFormat("EEE MMM d HH:mm:ss yyyy Z");
         return dateFormat.format(date);
     }
 
     /** SHA-1 hash to generate ID for this commit. */
     private String setID() {
-        return Utils.sha1(Repository.curStage.storeBlobs.toString(), parent.toString(), message, timeStamp);
+        return Utils.sha1(storeBlobs.toString(), firstParentID.toString(), message, timeStamp);
     }
 
-    /** Init new Commit with its parents. */
-    public List<String> getParentID() {
-        return parent;
+    /** Copy Staging area info to this commit. */
+    public void saveStaging2Commit(Staging stage) {
+        storeBlobs = new HashMap<>(stage.storeBlobs);
     }
 
     /** Save current commit to objects folder and make MASTER_PTR head of commit. */
@@ -65,11 +75,31 @@ public class Commit implements Serializable {
         Utils.writeObject(MASTER_PTR, this);
     }
 
+    /** Check storeBlob HashMap to see map exists. */
+    public boolean IsFileInCommit(String filePath) {
+        if (storeBlobs.containsKey(filePath)) {
+            return true;
+        }
+        return false;
+    }
+
+    /** Check storeBlob HashMap to see map exists. Remove map obj if exists. */
+    public void rmFileInCommit(String filePath) {
+        if (storeBlobs.containsKey(filePath)) {
+            storeBlobs.remove(filePath);
+        }
+        Utils.writeObject(MASTER_PTR, this);
+    }
+
     /** Return private ID. */
     public String getID() {
         return ID;
     }
 
+    /** Return firstParentID to create new Commit. */
+    public String getFirstParentID() {
+        return firstParentID;
+    }
     /** Return private timeStamp. */
     public String getTimeStamp() {
         return timeStamp;
@@ -85,7 +115,7 @@ public class Commit implements Serializable {
         System.out.println("===");
         System.out.println("commit " + this.getID());
         System.out.println("Date: " + this.getTimeStamp());
-        System.out.println(this.getMessage());
+        System.out.println(this.getMessage() + '\n');
     }
 
 }
