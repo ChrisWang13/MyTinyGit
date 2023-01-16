@@ -33,13 +33,12 @@ V5 Commit (Hello.java): Hello.java → v5, Friend.java → v3, Egg.java → v3
 
 
 ## Classes and Data Structures
-make check TESTER_FLAGS="--verbose"
 
 
 ### `git init`
 1. Check if `.gitlet` file exists in `git init`
 2. Init all folder with `mkdir`
-3. TODO: make initial commit
+3. make empty Staging area and initial commit
 
 ### `Blob implements Serializable`
 #### Fields
@@ -51,7 +50,7 @@ make check TESTER_FLAGS="--verbose"
 2. Place to store is in staging folder by calling `writeObject`
 3. Add persistence file to record  staging history
 
-### Refractor (2023.1.14 Update)
+### Refractor (2023.1.16 Update)
 1. In `Staging` class, refractor storeBlobs from `List` that store `Blob` object to HashMap
 that map between <Blob pathName, SHA1-hash of Blob>. Easy to delete!
 2. Still need Blob to quick read byte for diff or quick view file contents
@@ -65,9 +64,14 @@ that map between <Blob pathName, SHA1-hash of Blob>. Easy to delete!
         storeBlobs.remove(blob);
     }
 ```
+3. When Writing staged file to staging folder (BlobID diff from previous commit and current Staging).
+    Use `Utils.sha1(blob.getFilePath())` as staging file entry name(String), easy to overwrite if file is already staged.
 
 
-
-
+## Testing
+1. Print my output 
+```shell
+make check TESTER_FLAGS="--verbose"
+```
 
 

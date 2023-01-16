@@ -33,7 +33,6 @@ public class Commit implements Serializable {
     /** Copy of storeBlob in Staging, to keep track of Blobs(files) in this commit. */
     public Map<String, String> storeBlobs = new HashMap<>();
 
-
      /** Create initial commit with default message. */
     public Commit() {
         // Create Unix Epoch time
@@ -44,7 +43,9 @@ public class Commit implements Serializable {
     }
 
     /** Create new commit with designed parentsID and message. */
-    public Commit(String parentID, String message) {
+    public Commit(Staging stage, String parentID, String message) {
+        // Copy Staging area info to this commit.
+        this.storeBlobs = new HashMap<>(stage.storeBlobs);
         this.message = message;
         this.firstParentID = new String(parentID);
         this.mergeParentID = new String();
@@ -63,11 +64,6 @@ public class Commit implements Serializable {
         return Utils.sha1(storeBlobs.toString(), firstParentID.toString(), message, timeStamp);
     }
 
-    /** Copy Staging area info to this commit. */
-    public void saveStaging2Commit(Staging stage) {
-        storeBlobs = new HashMap<>(stage.storeBlobs);
-    }
-
     /** Save current commit to objects folder and make MASTER_PTR head of commit. */
     public void saveCommit() {
         File CURR_COMMIT_FILE = Utils.join(OBJ_DIR, ID);
@@ -83,12 +79,28 @@ public class Commit implements Serializable {
         return false;
     }
 
-    /** Check storeBlob HashMap to see map exists. Remove map obj if exists. */
+    /** Check storeBlob HashMap to see if map exists. Remove map obj if exists. */
     public void rmFileInCommit(String filePath) {
         if (storeBlobs.containsKey(filePath)) {
             storeBlobs.remove(filePath);
         }
         Utils.writeObject(MASTER_PTR, this);
+    }
+
+    /** Get value of <FilePath, ShA1-Hash> pair, */
+    public String getCommitFileBlobID(String filePath) {
+        if (storeBlobs.isEmpty()) {
+            return null;
+        }
+        if (this.IsFileInCommit(filePath)) {
+            String commitName = storeBlobs.get(filePath);
+            // Open Commit object in OBJ folder
+            File obj = Utils.join(OBJ_DIR, commitName);
+            Blob blobObj = Utils.readObject(obj, Blob.class);
+            return blobObj.getBlobID();
+        }
+        // File not found in this commit
+        return null;
     }
 
     /** Return private ID. */

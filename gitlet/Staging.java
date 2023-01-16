@@ -43,14 +43,28 @@ public class Staging implements Serializable {
     public void saveBlob2Staging(Blob blob) {
         storeBlobs.put(blob.getFilePath(), blob.getBlobID());
         // Write staged file to staging folder.
-        // blobID is fileName and filePath, used only for this file.
-        // Overwrite entry if already staged
-        String newFileName = blob.blobID;
+        // SHA1-Hash of filePath as staging file entry name(String),
+        // easy to overwrite if file is already staged.
+        String newFileName = Utils.sha1(blob.getFilePath());
         File newFile = Utils.join(STAGING_DIR, newFileName);
         Utils.writeObject(newFile, blob);
         this.saveStaging();
     }
 
+    public String getStagingFileBlobID(String filePath) {
+        if (storeBlobs.isEmpty()) {
+            return null;
+        }
+        if (this.IsFileInStaging(filePath)) {
+            String stagingName = Utils.sha1(filePath);
+            // Open Staging object in Staging folder
+            File obj = Utils.join(STAGING_DIR, stagingName);
+            Blob blobObj = Utils.readObject(obj, Blob.class);
+            return blobObj.getBlobID();
+        }
+        // File not found in this Staging
+        return null;
+    }
     /** Save current Staging config to ADDSTAGE_PTR. */
     public void saveStaging() {
         Utils.writeObject(ADDSTAGE_PTR, this);

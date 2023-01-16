@@ -1,8 +1,7 @@
 package gitlet;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 import static gitlet.Utils.*;
 
@@ -88,9 +87,29 @@ public class Repository {
     /** gitlet add function */
     public static void add(String fileName) {
         File addFile = getFileFromCWD(fileName);
-        // Create matched blob with file
-        Blob blob = new Blob(addFile);
+        // 1. Compare blobID of file in current Commit of this file,
+        // if same, don't create new blob to save space
+        curCommit = getCurCommit();
+        String curCommitBlobID = curCommit.getCommitFileBlobID(addFile.getPath());
+        String curBlobID = Utils.sha1(Arrays.toString(Utils.readContents(addFile)), addFile.getPath());
+        if (curCommitBlobID != null && curCommitBlobID.equals(curBlobID)) {
+            System.out.println("Same contents with last commit");
+            System.exit(0);
+        }
+        System.out.println("Diff contents with last commit");
+
+        // 2. Compare blobID of file in current Staging,
+        // if same, don't add to Staging area
         curStage = getCurStage();
+        String curStagingBlobID = curStage.getStagingFileBlobID(addFile.getPath());
+        if (curStagingBlobID != null && curStagingBlobID.equals(curBlobID)) {
+            System.out.println("Same contents with last Staging");
+            System.exit(0);
+        }
+        System.out.println("Diff contents with last Staging");
+
+        // 3. All checked, create matched blob with file
+        Blob blob = new Blob(addFile);
         curStage.saveBlob2Staging(blob);
     }
 
@@ -104,9 +123,7 @@ public class Repository {
         // create new commit with init info: parent Commit id
         Commit curCommit = getCurCommit();
         String parentID = curCommit.getID();
-        Commit newCommit = new Commit(parentID, message);
-        // Save Staging area info to this new Commit
-        newCommit.saveStaging2Commit(curStage);
+        Commit newCommit = new Commit(curStage, parentID, message);
         newCommit.saveCommit();
         // Remove Staging area
         curStage.rmStagingArea();
