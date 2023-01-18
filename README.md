@@ -35,8 +35,8 @@ V5 Commit (Hello.java): Hello.java → v5, Friend.java → v3, Egg.java → v3
 ## Classes and Data Structures
 
 
-### `git init`
-1. Check if `.gitlet` file exists in `git init`
+### `gitlet init`
+1. Check if `.gitlet` file exists in `gitlet init`
 2. Init all folder with `mkdir`
 3. make empty Staging area and initial commit
 
@@ -45,12 +45,20 @@ V5 Commit (Hello.java): Hello.java → v5, Friend.java → v3, Egg.java → v3
 1. `byte[] contents`
 2. `File file`
 
-### `git add`
+### `gitlet add`
 1. Staging area is a list of added blobs
 2. Place to store is in staging folder by calling `writeObject`
-3. Add persistence file to record  staging history
+3. Add persistence file to record staging history
+#### Fields
+1. ` private Map<String, String> addBlobs`
+2. ` private Set<String> rmBlobs`
 
-### Refractor (2023.1.16 Update)
+### `gitlet commit`
+#### Fields
+1. ` private Map<String, String> addBlobs`
+
+
+### Refractor (2023.1.18 Update)
 1. In `Staging` class, refractor storeBlobs from `List` that store `Blob` object to HashMap
 that map between <Blob pathName, SHA1-hash of Blob>. Easy to delete!
 2. Still need Blob to quick read byte for diff or quick view file contents
@@ -66,10 +74,10 @@ that map between <Blob pathName, SHA1-hash of Blob>. Easy to delete!
 ```
 3. When Writing staged file to staging folder (BlobID diff from previous commit and current Staging).
     Use `Utils.sha1(blob.getFilePath())` as staging file entry name(String), easy to overwrite if file is already staged.
-
+4. Be careful with object referencing! Return copied new object.
 
 ## Testing
-1. Print my output 
+1. Print my output in testing folder
 ```shell
 make check TESTER_FLAGS="--verbose"
 ```
