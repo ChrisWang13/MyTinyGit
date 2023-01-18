@@ -36,7 +36,9 @@ class Utils {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-1");
             for (Object val : vals) {
-                if (val instanceof byte[]) {
+                if (val instanceof Byte) {
+                    md.update((Byte) val);
+                } else if (val instanceof byte[]) {
                     md.update((byte[]) val);
                 } else if (val instanceof String) {
                     md.update(((String) val).getBytes(StandardCharsets.UTF_8));
@@ -112,7 +114,7 @@ class Utils {
      *  creating or overwriting it as needed.  Each object in CONTENTS may be
      *  either a String or a byte array.  Throws IllegalArgumentException
      *  in case of problems. */
-    static void writeContents(File file, Object... contents) {
+    static void writeContents(File file, byte[] contents) {
         try {
             if (file.isDirectory()) {
                 throw
@@ -121,7 +123,9 @@ class Utils {
             BufferedOutputStream str =
                 new BufferedOutputStream(Files.newOutputStream(file.toPath()));
             for (Object obj : contents) {
-                if (obj instanceof byte[]) {
+                if (obj instanceof Byte) {
+                    str.write((Byte) obj);
+                } else if (obj instanceof byte[]) {
                     str.write((byte[]) obj);
                 } else {
                     str.write(((String) obj).getBytes(StandardCharsets.UTF_8));

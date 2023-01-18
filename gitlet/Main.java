@@ -18,13 +18,22 @@ public class Main {
         }
         String firstArg = args[0];
         switch (firstArg) {
-            case "init":
-                // TODO: handle the `init` command
-                break;
-            case "add":
-                // TODO: handle the `add [filename]` command
-                break;
-            // TODO: FILL THE REST IN
+            case "init" -> Repository.init();
+            case "add" -> Repository.add(args[1]);
+            case "commit" -> {
+                if (args[1].isEmpty()) {
+                    System.out.println("Please enter a commit message.");
+                    System.exit(0);
+                }
+                Repository.commit(args[1]);
+            }
+            case "log" -> Repository.log();
+            case "rm" -> Repository.rm(args[1]);
+            case "status" -> Repository.status();
+            default -> {
+                System.out.println("No command with that name exists.");
+                System.exit(0);
+            }
         }
     }
 }

@@ -34,12 +34,52 @@ V5 Commit (Hello.java): Hello.java → v5, Friend.java → v3, Egg.java → v3
 
 ## Classes and Data Structures
 
-### ` Commit implements Serializable`
 
+### `gitlet init`
+1. Check if `.gitlet` file exists in `gitlet init`
+2. Init all folder with `mkdir`
+3. make empty Staging area and initial commit
+
+### `Blob implements Serializable`
 #### Fields
+1. `byte[] contents`
+2. `File file`
 
-1. Field 1
-2. Field 2
+### `gitlet add`
+1. Staging area is a list of added blobs
+2. Place to store is in staging folder by calling `writeObject`
+3. Add persistence file to record staging history
+#### Fields
+1. ` private Map<String, String> addBlobs`
+2. ` private Set<String> rmBlobs`
 
+### `gitlet commit`
+#### Fields
+1. ` private Map<String, String> addBlobs`
+
+
+### Refractor (2023.1.18 Update)
+1. In `Staging` class, refractor storeBlobs from `List` that store `Blob` object to HashMap
+that map between <Blob pathName, SHA1-hash of Blob>. Easy to delete!
+2. Still need Blob to quick read byte for diff or quick view file contents
+```java
+/** This is buggy! Since these Blob objects are diffent!! */
+/** Shared list to store blobs, add or remove file to storeBlobs in Staging area. */
+    public List<Blob> storeBlobs = new ArrayList<>();
+/** Remove file in storeBlob list. */
+    public void rmFileInStaging(File fileName) {
+        Blob blob = new Blob(fileName);
+        storeBlobs.remove(blob);
+    }
+```
+3. When Writing staged file to staging folder (BlobID diff from previous commit and current Staging).
+    Use `Utils.sha1(blob.getFilePath())` as staging file entry name(String), easy to overwrite if file is already staged.
+4. Be careful with object referencing! Return copied new object.
+
+## Testing
+1. Print my output in testing folder
+```shell
+make check TESTER_FLAGS="--verbose"
+```
 
 
