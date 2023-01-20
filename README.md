@@ -57,6 +57,19 @@ V5 Commit (Hello.java): Hello.java → v5, Friend.java → v3, Egg.java → v3
 #### Fields
 1. ` private Map<String, String> addBlobs`
 
+### `gitlet branch and checkout`
+1. `HEAD` is reference of branch file.Store that SHA-1 value under a simple name
+2. HEAD (ref: refs/heads/branch?)(File Contents should name of branch File). Use `join` to refer to File in heads folder. 
+```shell
+# Read HEAD file
+$ cat .git/HEAD
+ref: refs/heads/master
+# Crude way of updating master 
+$ echo 1a410efbd13591db07496601ebc7a059dd55cfe9 > .git/refs/heads/master
+# Safe way to update master
+$ git update-ref refs/heads/master 1a410efbd13591db07496601ebc7a059dd55cfe9
+```
+
 
 ### Refractor (2023.1.18 Update)
 1. In `Staging` class, refractor storeBlobs from `List` that store `Blob` object to HashMap
@@ -75,6 +88,7 @@ that map between <Blob pathName, SHA1-hash of Blob>. Easy to delete!
 3. When Writing staged file to staging folder (BlobID diff from previous commit and current Staging).
     Use `Utils.sha1(blob.getFilePath())` as staging file entry name(String), easy to overwrite if file is already staged.
 4. Be careful with object referencing! Return copied new object.
+
 
 ## Testing
 1. Print my output in testing folder

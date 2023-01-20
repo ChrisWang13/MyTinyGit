@@ -18,11 +18,11 @@ public class Repository {
      *      |     |--commit
             |--refs
                   |--heads
-     *              |--master (File with saved Commit info)
-     *              |--OtherBranchName (File with saved Commit info)
+     *              |--master (latest commitID in branch)
+     *              |--OtherBranchName (latest commitID in branch)
      *            |--staging-index (File with saved Staging info)
-     *      |--HEAD (File, read current head of branch) (refs/heads/branch?)
-     *      |--staging (staged folder file, real git put staged blobs in objects folder)
+     *      |--HEAD (ref: refs/heads/branch?)(Contents should String name of branch)
+     *      |--staging (Staged folder file, real git put staged blobs in objects folder)
      *
      */
 
@@ -34,18 +34,20 @@ public class Repository {
     public static final File OBJ_DIR = join(GITLET_DIR, "objects");
     public static final File REFS_DIR = join(GITLET_DIR, "refs");
     public static final File HEADS_DIR = join(REFS_DIR, "heads");
-    public static final File STAGING_DIR = join(GITLET_DIR, "staging");
 
     /** Pointer file to record last operation. */
-    // TODO Currently HEAD is always MASTER_PTR, branch is not implemented.
-    public static final File MASTER_PTR = join(HEADS_DIR, "master");
+    public static final File STAGING_DIR = join(GITLET_DIR, "staging");
+    public static final File HEAD = join(GITLET_DIR, "head");
     public static final File STAGING_INDEX = join(REFS_DIR, "staging-index");
 
     /** Read from STAGING_INDEX file to check Staging status. */
     private static Staging curStage = new Staging();
 
-    /** Read from HEAD file to check Commit status. */
+    /** Read from CommitID file in obj folder to check Commit status. */
     private static Commit curCommit = new Commit();
+
+    /** Read from HEAD file to get current branch name. */
+    private static String curBranchName;
 
     /** gitlet init function */
     public static void init() {
@@ -59,22 +61,19 @@ public class Repository {
         REFS_DIR.mkdirs();
         HEADS_DIR.mkdirs();
         STAGING_DIR.mkdirs();
-        // Init commit and empty Staging area
-        curCommit.saveCommit();
+        // Init HEAD, Write String name master to HEAD File
+        Utils.writeObject(HEAD, "master");
+        curBranchName = getCurBranchName();
+        curCommit.saveCommit(curBranchName);
         curStage.saveStaging();
     }
 
     /** Inputs a command that requires containing a .gitlet subdirectory */
-    public static void checkGitletExists() {
+    private static void checkGitletExists() {
         if (!GITLET_DIR.exists()) {
             System.out.println("Not in an initialized Gitlet directory.");
             System.exit(0);
         }
-    }
-
-    /** Helper function to return Staging from persistent STAGING_INDEX. */
-    private static Staging getCurStage() {
-        return Utils.readObject(STAGING_INDEX, Staging.class);
     }
 
     /** Helper function to return file reference with fileName(String).
@@ -90,9 +89,28 @@ public class Repository {
         return file;
     }
 
+    /** Helper function to return String branchName in HEAD file. */
+    private static String getCurBranchName() {
+        return Utils.readObject(HEAD, String.class);
+    }
+
     /** Helper function to return Staging from persistent STAGING_INDEX. */
+    private static Staging getCurStage() {
+        return Utils.readObject(STAGING_INDEX, Staging.class);
+    }
+
+    /** Helper function to return Commit from persistent HEAD pointer to commit. */
     private static Commit getCurCommit() {
-        return Utils.readObject(MASTER_PTR, Commit.class);
+        // Read from HEAD file for current branch name
+        curBranchName = getCurBranchName();
+        // File reference to HEADS
+        File ref = join(HEADS_DIR, curBranchName);
+        // Read from ref about current commitID
+        String commitID = Utils.readObject(ref, String.class);
+        // Search for commit File in object folder
+        File commitFile = join(OBJ_DIR, commitID);
+        // Return latest commit class in current branch
+        return Utils.readObject(commitFile, Commit.class);
     }
 
     /** gitlet add function */
@@ -129,7 +147,10 @@ public class Repository {
 
     /** gitlet commit function. */
     public static void commit(String message) {
+        // Init current status
         curStage = getCurStage();
+        curBranchName = getCurBranchName();
+        // Failed case
         if (curStage.isStagingEmpty()) {
             System.out.println("No changes added to the commit.");
             System.exit(0);
@@ -138,7 +159,8 @@ public class Repository {
         Commit curCommit = getCurCommit();
         String parentID = curCommit.getID();
         Commit newCommit = new Commit(curStage, parentID, message);
-        newCommit.saveCommit();
+
+        newCommit.saveCommit(curBranchName);
         // Remove Staging area
         curStage.rmStagingArea();
     }
@@ -192,9 +214,16 @@ public class Repository {
         checkGitletExists();
         // prefix of filePath
         String cwd = CWD.getPath();
-        // TODO different branches
         System.out.println("=== Branches ===");
-        System.out.println("*master");
+        ArrayList<String> branchList= new ArrayList<>(Utils.plainFilenamesIn(HEADS_DIR));
+        curBranchName = getCurBranchName();
+        for (String br : branchList) {
+            if (br.equals(curBranchName)) {
+                System.out.println("*" + curBranchName);
+                continue;
+            }
+            System.out.println(br);
+        }
         System.out.println();
         // 2. Staged file in current Staging area
         // Use set to print in lexicographic order
@@ -263,6 +292,8 @@ public class Repository {
                     continue;
                 }
                 String childFilePath = child.getPath();
+                // Get back to current head
+                curCommit = getCurCommit();
                 // Check tracked?
                 boolean isTracked = curCommit.isFileInCommit(childFilePath);
                 while (!curCommit.getFirstParentID().isEmpty()) {
@@ -285,4 +316,20 @@ public class Repository {
         System.out.println();
     }
 
+
+    /** gitlet branch function. */
+    public static void branch(String branchName) {
+        // TODO Handle duplicate branch name
+        // System.out.println("A branch with that name already exists.");
+        // Create a branch == create a new file and save commitID to branchFile
+        curCommit = getCurCommit();
+        curCommit.saveCommit(branchName);
+    }
+
+    /** gitlet checkout function. */
+    public static void checkoutBranch(String branchName) {
+        // TODO Fail case: branch does not exist
+        // File branchName to overwrite HEAD file
+        Utils.writeObject(HEAD, branchName);
+    }
 }

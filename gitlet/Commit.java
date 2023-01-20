@@ -65,11 +65,14 @@ public class Commit implements Serializable {
                 firstParentID, message, timeStamp);
     }
 
-    /** Save current commit to objects folder and make MASTER_PTR head of commit. */
-    public void saveCommit() {
+    /** Save current commit to objects folder and save current commitID in branch head. */
+    public void saveCommit(String branchName) {
+        // Save in obj folder
         File commitFile = Utils.join(OBJ_DIR, ID);
         Utils.writeObject(commitFile, this);
-        Utils.writeObject(MASTER_PTR, this);
+        // Save commitID to branch file
+        File branchFile = Utils.join(HEADS_DIR, branchName);
+        Utils.writeObject(branchFile, this.ID);
     }
 
     /** Check addBlob HashMap to see map exists. */

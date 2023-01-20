@@ -30,10 +30,12 @@ public class Main {
             case "log" -> Repository.log();
             case "rm" -> Repository.rm(args[1]);
             case "status" -> Repository.status();
-            default -> {
-                System.out.println("No command with that name exists.");
-                System.exit(0);
+            case "branch" -> Repository.branch(args[1]);
+            case "checkout"-> {
+                /* * checkout [branch name] */
+                Repository.checkoutBranch(args[1]);
             }
         }
+
     }
 }
