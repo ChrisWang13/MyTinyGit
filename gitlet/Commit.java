@@ -45,7 +45,7 @@ public class Commit implements Serializable {
     /** Create new commit with designed parentsID and message. */
     public Commit(Staging stage, String parentID, String message) {
         // Copy Staging area info to this commit.
-        this.savedBlobs = new HashMap<>(stage.getAddBlobs());
+        this.savedBlobs = new TreeMap<>(stage.getAddBlobs());
         this.message = message;
         this.firstParentID = parentID;
         this.mergeParentID = "";
@@ -68,7 +68,7 @@ public class Commit implements Serializable {
     /** Save current commit to objects folder and save current commitID in branch head. */
     public void saveCommit(String branchName) {
         // Save in obj folder
-        File commitFile = Utils.join(OBJ_DIR, ID);
+        File commitFile = Utils.join(OBJ_DIR, this.ID);
         Utils.writeObject(commitFile, this);
         // Save commitID to branch file
         File branchFile = Utils.join(HEADS_DIR, branchName);
@@ -111,7 +111,7 @@ public class Commit implements Serializable {
 
     /** Return a new copied saveBlobs. */
     public Map<String, String> getSavedBlobs() {
-        return new HashMap<>(savedBlobs);
+        return new TreeMap<>(savedBlobs);
     }
 
     /** Helper function to print log info of this commit. */

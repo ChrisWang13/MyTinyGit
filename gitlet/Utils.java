@@ -21,7 +21,10 @@ import java.util.List;
 
 /** Assorted utilities.
  *
- *  @author ChrisWang13
+ * Give this file a good read as it provides several useful utility functions
+ * to save you some time.
+ *
+ *  @author P. N. Hilfinger
  */
 class Utils {
 
@@ -36,9 +39,7 @@ class Utils {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-1");
             for (Object val : vals) {
-                if (val instanceof Byte) {
-                    md.update((Byte) val);
-                } else if (val instanceof byte[]) {
+                if (val instanceof byte[]) {
                     md.update((byte[]) val);
                 } else if (val instanceof String) {
                     md.update(((String) val).getBytes(StandardCharsets.UTF_8));
@@ -114,18 +115,16 @@ class Utils {
      *  creating or overwriting it as needed.  Each object in CONTENTS may be
      *  either a String or a byte array.  Throws IllegalArgumentException
      *  in case of problems. */
-    static void writeContents(File file, byte[] contents) {
+    static void writeContents(File file, Object... contents) {
         try {
             if (file.isDirectory()) {
                 throw
-                    new IllegalArgumentException("cannot overwrite directory");
+                        new IllegalArgumentException("cannot overwrite directory");
             }
             BufferedOutputStream str =
-                new BufferedOutputStream(Files.newOutputStream(file.toPath()));
+                    new BufferedOutputStream(Files.newOutputStream(file.toPath()));
             for (Object obj : contents) {
-                if (obj instanceof Byte) {
-                    str.write((Byte) obj);
-                } else if (obj instanceof byte[]) {
+                if (obj instanceof byte[]) {
                     str.write((byte[]) obj);
                 } else {
                     str.write(((String) obj).getBytes(StandardCharsets.UTF_8));
@@ -143,7 +142,7 @@ class Utils {
                                                  Class<T> expectedClass) {
         try {
             ObjectInputStream in =
-                new ObjectInputStream(new FileInputStream(file));
+                    new ObjectInputStream(new FileInputStream(file));
             T result = expectedClass.cast(in.readObject());
             in.close();
             return result;
@@ -162,12 +161,12 @@ class Utils {
 
     /** Filter out all but plain files. */
     private static final FilenameFilter PLAIN_FILES =
-        new FilenameFilter() {
-            @Override
-            public boolean accept(File dir, String name) {
-                return new File(dir, name).isFile();
-            }
-        };
+            new FilenameFilter() {
+                @Override
+                public boolean accept(File dir, String name) {
+                    return new File(dir, name).isFile();
+                }
+            };
 
     /** Returns a list of the names of all plain files in the directory DIR, in
      *  lexicographic order as Java Strings.  Returns null if DIR does
@@ -231,7 +230,7 @@ class Utils {
         return new GitletException(String.format(msg, args));
     }
 
-    /** Print a message composed of MSG and ARGS as for the String.format
+    /** Print a message composed from MSG and ARGS as for the String.format
      *  method, followed by a newline. */
     static void message(String msg, Object... args) {
         System.out.printf(msg, args);

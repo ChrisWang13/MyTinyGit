@@ -82,7 +82,7 @@ public class Staging implements Serializable {
 
     /** Return a new copied rmBlobs. */
     public Set<String> getRmBlobs() {
-        return new HashSet<>(rmBlobs);
+        return new TreeSet<>(rmBlobs);
     }
 
     /** Return a new copied addBlobs. */
