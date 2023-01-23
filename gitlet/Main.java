@@ -32,10 +32,16 @@ public class Main {
             case "status" -> Repository.status();
             case "branch" -> Repository.branch(args[1]);
             case "checkout"-> {
-                /* * checkout [branch name] */
-                Repository.checkoutBranch(args[1]);
+                if (args.length == 3 && args[1].equals("--")) {
+                    Repository.checkoutFileName(args[2]);
+                } else if (args.length == 4 && args[2].equals("--")) {
+                    Repository.checkoutCommitID(args[1],args[3]);
+                } else if (args.length == 2) {
+                    Repository.checkoutBranch(args[1]);
+                } else {
+                    System.out.println("Incorrect operands.");
+                }
             }
         }
-
     }
 }

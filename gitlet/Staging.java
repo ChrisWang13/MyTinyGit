@@ -41,14 +41,12 @@ public class Staging implements Serializable {
 
     /** Save blob with info and write it to STAGING_INDEX for persistence. */
     public void saveBlob2Staging(Blob blob) {
-        addBlobs.put(blob.getFilePath(), blob.getBlobID());
-        // Write staged file to staging folder.
         // SHA1-Hash of filePath as staging file entry name(String),
         // easy to overwrite if file is already staged.
-        String newFileName = Utils.sha1(blob.getFilePath());
-        File newFile = Utils.join(STAGING_DIR, newFileName);
-        // Write blobs to Staging file
-        Utils.writeObject(newFile, blob);
+        addBlobs.put(blob.getFilePath(), blob.getBlobID());
+        // Write blobFile to obj folder, save contents for checkout
+        File blobFile = Utils.join(OBJ_DIR, blob.getBlobID());
+        Utils.writeObject(blobFile, blob);
         this.saveStaging();
     }
 
