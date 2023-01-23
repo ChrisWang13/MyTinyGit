@@ -362,19 +362,30 @@ public class Repository {
             System.out.println("No need to checkout the current branch.");
             System.exit(0);
         }
+        // Fail case: File untracked in current branch and would be overwritten by checkout
+        // current branchFileList
+        Set<String> curBrFileList = getCurCommit().getSavedBlobs().keySet();
+        List<String> list = Utils.plainFilenamesIn(CWD);
+        for (String fileName: list) {
+            String filePath = CWD + "/" + fileName;
+            if (!curBrFileList.contains(filePath)) {
+                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                System.exit(0);
+            }
+        }
     }
 
     /** gitlet checkout function.
      *  Files are all tracked to branch. Three use cases are:
-     *      oldBranch           newBranch
+     *      curBranch           newBranch
      *      File1               File1 (Overwrite File1 in cwd)
      *      File2               File2 is null (If File2 exist in cwd, delete File2)
      *      File3 is null       File3 (Overwrite File3 in cwd)
      * */
     public static void checkoutBranch(String branchName) {
         checkoutBranchIsFailed(branchName);
-        // Old branchFileList
-        Set<String> oldBrFileList = getCurCommit().getSavedBlobs().keySet();
+        // current branchFileList
+        Set<String> curBrFileList = getCurCommit().getSavedBlobs().keySet();
         // Update branch with new branch(branchName)
         Utils.writeObject(HEAD, branchName);
         // New branchFileList
@@ -386,13 +397,16 @@ public class Repository {
             overWriteFileWithCommit(getCurCommit(), f.getName());
         }
         // Case 2, delete Set(old - new) file
-        for (String path : oldBrFileList) {
+        for (String path : curBrFileList) {
             File f = new File(path);
             // Files are not tracked in checkout branch. Delete the file if in cwd.
             if (!newBrFileList.contains(path) && f.exists()) {
                 f.delete();
             }
         }
+        // Clear staging area, unless checkout branch is current branch
+        curStage = getCurStage();
+        curStage.rmStagingArea();
     }
 
     /** Helper function to overwrite file with given commit. */
