@@ -57,8 +57,21 @@ V5 Commit (Hello.java): Hello.java → v5, Friend.java → v3, Egg.java → v3
 #### Fields
 1. ` private Map<String, String> addBlobs`
 
+### `gitlet branch and checkout`
+1. `HEAD` is reference of branch file.Store that SHA-1 value under a simple name
+2. HEAD (ref: refs/heads/branch?)(File Contents should name of branch File). Use `join` to refer to File in heads folder. 
+```shell
+# Read HEAD file
+$ cat .git/HEAD
+ref: refs/heads/master
+# Crude way of updating master 
+$ echo 1a410efbd13591db07496601ebc7a059dd55cfe9 > .git/refs/heads/master
+# Safe way to update master
+$ git update-ref refs/heads/master 1a410efbd13591db07496601ebc7a059dd55cfe9
+```
 
-### Refractor (2023.1.18 Update)
+
+### Refractor (2023.1.23 Update)
 1. In `Staging` class, refractor storeBlobs from `List` that store `Blob` object to HashMap
 that map between <Blob pathName, SHA1-hash of Blob>. Easy to delete!
 2. Still need Blob to quick read byte for diff or quick view file contents
@@ -75,11 +88,40 @@ that map between <Blob pathName, SHA1-hash of Blob>. Easy to delete!
 3. When Writing staged file to staging folder (BlobID diff from previous commit and current Staging).
     Use `Utils.sha1(blob.getFilePath())` as staging file entry name(String), easy to overwrite if file is already staged.
 4. Be careful with object referencing! Return copied new object.
+5. Use `TrieIndex` to speed up its search for abbreviated `commitID`
+## Debugging
+1. IntelliJ provides a feature called “remote JVM debugging” that will allow you to add breakpoints that trigger during integration tests.
+2. The script that will connect to the IntelliJ JVM is `runner.py`
+```shell
+# Setup for dubgging
+# nano ~/.bashrc
+# export MY_TINY_GIT=/home/chris/MyTinyGit
+# Activate
+# source ~/.bashrc
+# echo $MY_TINY_GIT
+```
 
+```shell
+make
+cd /home/chris/Desktop/MyTinyGit/testing
+python3 runner.py --debug samples/test29-bad-checkouts-err.in
+```
 ## Testing
 1. Print my output in testing folder
 ```shell
+cd /home/chris/Desktop/MyTinyGit
+make
 make check TESTER_FLAGS="--verbose"
 ```
+2. Test specific test
+```shell
+make 
+cd /home/chris/Desktop/MyTinyGit/testing
+python3 tester.py --verbose samples/test29-bad-checkouts-err.in
+```
 
-
+## Count total work
+```shell
+cd /home/chris/Desktop/MyTinyGit
+find . -name "*java" | xargs cat | wc
+```

@@ -19,12 +19,12 @@ public class Blob implements Serializable {
     private final String filePath;
 
     /** String representation of file. */
-    private final String contents;
+    private final byte[] contents;
 
     /** One blob match with one file. */
     Blob(File file) {
         this.filePath = file.getPath();
-        this.contents = Arrays.toString(Utils.readContents(file));
+        this.contents = Utils.readContents(file);
         this.blobID = Utils.sha1(contents, filePath);
     }
 
@@ -38,4 +38,8 @@ public class Blob implements Serializable {
         return filePath;
     }
 
+    /** Return contents, used when checkout to overwrite old file contents. */
+    public byte[] getContents() {
+        return contents;
+    }
 }
