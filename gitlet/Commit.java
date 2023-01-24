@@ -30,17 +30,18 @@ public class Commit implements Serializable {
     /** Second parent commitID found in merge commits. */
     private String mergeParentID;
 
-    /** Copy of addBlob in Staging, to keep track of Blobs(files) in this commit. */
-    private Map<String, String> savedBlobs = new TreeMap<>();
+    /** Update parent commitFiles with staging info. */
+    private Map<String, String> savedBlobs;
 
     /** Array list of parents' commitID to get LCA Commit object. */
     private List<String> parents;
 
      /** Create initial commit with default message. */
     public Commit() {
-        // Create Unix Epoch time
+        this.savedBlobs = new TreeMap<>();
         this.firstParentID = "";
         this.mergeParentID = "";
+        // Unix epoch time
         this.timeStamp = dateToTimeStamp(new Date(0));
         this.ID = setID();
         // Make sure current CommitID is also in parents list
@@ -49,17 +50,31 @@ public class Commit implements Serializable {
     }
 
     /** Create new commit with designed parentsID and message. */
-    public Commit(Staging stage, List<String> parents,
-                  String parentID, String message) {
-        // Copy Staging area info to this commit.
-        this.savedBlobs = new TreeMap<>(stage.getAddBlobs());
+    public Commit(Commit parentCommit, Staging stage, String message) {
+        this.savedBlobs = setSavedBlobs(parentCommit, stage);
         this.message = message;
-        this.firstParentID = parentID;
+        this.firstParentID = parentCommit.getID();
         this.mergeParentID = "";
         this.timeStamp = dateToTimeStamp(new Date());
         this.ID = setID();
-        this.parents = new ArrayList<>(parents);
+        this.parents = new ArrayList<>(parentCommit.getParents());
         this.parents.add(ID);
+    }
+
+    /** Copy parent commit info to this commit and update with staging info. */
+    private Map<String, String> setSavedBlobs(Commit parentCommit, Staging stage) {
+        // Copy from parent commit
+        Map<String, String> res = parentCommit.getSavedBlobs();
+        Map<String, String> addStage = stage.getAddBlobs();
+        Set<String> rmStage = stage.getRmBlobs();
+        // Update with addStaging and rmStaging info
+        for (String filePath : addStage.keySet()) {
+            res.put(filePath, addStage.get(filePath));
+        }
+        for (String filePath: rmStage) {
+            res.remove(filePath);
+        }
+        return res;
     }
 
     /** Formatter helper function to return String format of timeStamp. */
