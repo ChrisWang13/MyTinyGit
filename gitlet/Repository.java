@@ -225,6 +225,7 @@ public class Repository {
         } else if (curCommit.isFileInCommit(filePath)) {
             // 2. Remove file if it is in current commit, stage the file for removal
             curStage.rmFileInStaging(filePath);
+            curCommit.rmFileInCommit(filePath);
             // If removed before with unix rm cmd
             if (rmFile.exists()) {
                 rmFile.delete();

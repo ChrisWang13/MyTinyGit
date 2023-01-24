@@ -103,6 +103,11 @@ public class Commit implements Serializable {
     public boolean isFileInCommit(String filePath) {
         return savedBlobs.containsKey(filePath);
     }
+
+    /** Remove file in current Commit, file is untracked after this operation. */
+    public void rmFileInCommit(String filePath) {
+        this.savedBlobs.remove(filePath);
+    }
     
     /** Get value of <FilePath, ShA1-Hash> pair, */
     public String getCommitFileBlobID(String filePath) {
@@ -150,5 +155,4 @@ public class Commit implements Serializable {
         System.out.println("Date: " + this.getTimeStamp());
         System.out.println(this.getMessage() + '\n');
     }
-
 }
