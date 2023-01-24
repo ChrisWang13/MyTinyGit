@@ -32,7 +32,10 @@ public class Commit implements Serializable {
 
     /** Copy of addBlob in Staging, to keep track of Blobs(files) in this commit. */
     private Map<String, String> savedBlobs = new TreeMap<>();
-    
+
+    /** Array list of parents' commitID to get LCA Commit object. */
+    private List<String> parents;
+
      /** Create initial commit with default message. */
     public Commit() {
         // Create Unix Epoch time
@@ -40,10 +43,14 @@ public class Commit implements Serializable {
         this.mergeParentID = "";
         this.timeStamp = dateToTimeStamp(new Date(0));
         this.ID = setID();
+        // Make sure current CommitID is also in parents list
+        this.parents = new ArrayList<>();
+        this.parents.add(ID);
     }
 
     /** Create new commit with designed parentsID and message. */
-    public Commit(Staging stage, String parentID, String message) {
+    public Commit(Staging stage, List<String> parents,
+                  String parentID, String message) {
         // Copy Staging area info to this commit.
         this.savedBlobs = new TreeMap<>(stage.getAddBlobs());
         this.message = message;
@@ -51,6 +58,8 @@ public class Commit implements Serializable {
         this.mergeParentID = "";
         this.timeStamp = dateToTimeStamp(new Date());
         this.ID = setID();
+        this.parents = new ArrayList<>(parents);
+        this.parents.add(ID);
     }
 
     /** Formatter helper function to return String format of timeStamp. */
@@ -112,6 +121,11 @@ public class Commit implements Serializable {
     /** Return a new copied saveBlobs. */
     public Map<String, String> getSavedBlobs() {
         return new TreeMap<>(savedBlobs);
+    }
+
+    /** Return all parents CommitID. */
+    public List<String> getParents() {
+        return new ArrayList<>(parents);
     }
 
     /** Helper function to print log info of this commit. */

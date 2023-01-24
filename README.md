@@ -70,6 +70,12 @@ $ echo 1a410efbd13591db07496601ebc7a059dd55cfe9 > .git/refs/heads/master
 $ git update-ref refs/heads/master 1a410efbd13591db07496601ebc7a059dd55cfe9
 ```
 
+### `gitlet merge` 
+1. Difference between a tree and a graph: Tree has root, therefore transverse from root to
+get to any node; Graph has paths. Start from a random node and dfs or bfs all the way with 
+distance v.
+2. Find LCA (lowest(Regard to commit tree root: Initial commit) / latest common ancestor) for any two commits object.
+
 
 ### Refractor (2023.1.23 Update)
 1. In `Staging` class, refractor storeBlobs from `List` that store `Blob` object to HashMap
@@ -104,7 +110,7 @@ that map between <Blob pathName, SHA1-hash of Blob>. Easy to delete!
 ```shell
 make
 cd /home/chris/Desktop/MyTinyGit/testing
-python3 runner.py --debug samples/test29-bad-checkouts-err.in
+python3 runner.py --debug samples/test00-lca.in
 ```
 ## Testing
 1. Print my output in testing folder
@@ -117,7 +123,7 @@ make check TESTER_FLAGS="--verbose"
 ```shell
 make 
 cd /home/chris/Desktop/MyTinyGit/testing
-python3 tester.py --verbose samples/test29-bad-checkouts-err.in
+python3 tester.py --verbose samples/test00-lca.in
 ```
 
 ## Count total work

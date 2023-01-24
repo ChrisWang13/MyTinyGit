@@ -118,6 +118,18 @@ public class Repository {
         return Utils.readObject(commitFile, Commit.class);
     }
 
+    /** Helper function to return Commit with given branchName. */
+    private static Commit getCommit(String branchName) {
+        // File reference to branch
+        File ref = join(HEADS_DIR, branchName);
+        // Read from ref about branch commitID
+        String brCommitID = Utils.readObject(ref, String.class);
+        // Search for commit File in object folder
+        File brCommitFile = join(OBJ_DIR, brCommitID);
+        // Return latest commit class in current branch
+        return Utils.readObject(brCommitFile, Commit.class);
+    }
+
     private static boolean checkAddIsNeeded(String fileName) {
         File addFile = getFileFromCWD(fileName);
         String filePath = CWD + "/" + fileName;
@@ -166,11 +178,11 @@ public class Repository {
             System.out.println("No changes added to the commit.");
             System.exit(0);
         }
-
         Commit curCommit = getCurCommit();
         String parentID = curCommit.getID();
+        List<String> parents = curCommit.getParents();
         // Create new commit with init info: parent Commit id
-        Commit newCommit = new Commit(curStage, parentID, message);
+        Commit newCommit = new Commit(curStage, parents, parentID, message);
         // Save current CommitID to branchFile
         newCommit.saveCommit(curBranchName);
         // TrieIndex for object Commit in obj folder
@@ -363,7 +375,8 @@ public class Repository {
             System.exit(0);
         }
         // Fail case: File untracked in current branch and would be overwritten by checkout
-        // current branchFileList
+        // Real git do not clear staging area, and stage all files that is checkout out
+        // Real git won't do checkout that would overwrite or undo changes on staged files
         Set<String> curBrFileList = getCurCommit().getSavedBlobs().keySet();
         List<String> list = Utils.plainFilenamesIn(CWD);
         for (String fileName: list) {
@@ -445,5 +458,29 @@ public class Repository {
         Commit commit = readObject(commitFile, Commit.class);
         // Pass any commit
         overWriteFileWithCommit(commit, fileName);
+    }
+
+    /** Helper function to get split point Commit object. */
+    private static Commit getSplitPointCommit(Commit a, Commit b) {
+        List<String> parentA = a.getParents();
+        List<String> parentB = b.getParents();
+        String resID = null;
+        for (String pid : parentA) {
+            if (parentB.contains(pid)) {
+                resID = pid;
+            } else {
+                break;
+            }
+        }
+        // Read commit with resID
+        File commitFile = Utils.join(OBJ_DIR, resID);
+        return readObject(commitFile, Commit.class);
+    }
+
+    /** gitlet merge function. */
+    public static void merge(String branchName) {
+        // TODO Special merge case 1: Split point is same as given branch
+        // TODO Special merge case 2: Fast forward merge
+        Commit splitPoint = getSplitPointCommit(getCurCommit(), getCommit(branchName));
     }
 }
