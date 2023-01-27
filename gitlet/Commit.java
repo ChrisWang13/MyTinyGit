@@ -25,56 +25,63 @@ public class Commit implements Serializable {
     private final String timeStamp;
 
     /** First parent commitID for logging. */
-    private String firstParentID;
+    private String firstParentID = "";
 
     /** Second parent commitID found in merge commits. */
-    private String mergeParentID;
+    private String mergeParentID = null;
 
     /** Update parent commitFiles with staging info. */
     private Map<String, String> savedBlobs;
 
-    /** Array list of parents' commitID to get LCA Commit object. */
-    private List<String> parents;
+    /** Record non-duplicate parent CommitID for BFS getLCA merging. */
+    private Set<String> parents;
 
      /** Create initial commit with default message. */
     public Commit() {
         this.savedBlobs = new TreeMap<>();
-        this.firstParentID = "";
-        this.mergeParentID = "";
         // Unix epoch time
         this.timeStamp = dateToTimeStamp(new Date(0));
         this.ID = setID();
-        // Make sure current CommitID is also in parents list
-        this.parents = new ArrayList<>();
-        this.parents.add(ID);
+        // Update parents, include itself
+        parents = new HashSet<>();
+        parents.add(ID);
     }
 
     /** Create new commit with designed parentsID and message. */
-    public Commit(Commit parentCommit, Staging stage, String message) {
+    public Commit(Commit parentCommit, Commit brCommit, Staging stage, String message) {
         this.savedBlobs = setSavedBlobs(parentCommit, stage);
         this.message = message;
         this.firstParentID = parentCommit.getID();
-        this.mergeParentID = "";
         this.timeStamp = dateToTimeStamp(new Date());
         this.ID = setID();
-        this.parents = new ArrayList<>(parentCommit.getParents());
-        this.parents.add(ID);
+        this.parents = new HashSet<>(parentCommit.getParents());
+        parents.add(ID);
+        if (brCommit != null) {
+            this.mergeParentID = brCommit.getID();
+            parents.addAll(brCommit.getParents());
+        }
     }
 
     /** Copy parent commit info to this commit and update with staging info. */
     private Map<String, String> setSavedBlobs(Commit parentCommit, Staging stage) {
-        // Copy from parent commit
+        // All types of commit are copied from parent commit (include merge commit)
         Map<String, String> res = parentCommit.getSavedBlobs();
-        Map<String, String> addStage = stage.getAddBlobs();
         Set<String> rmStage = stage.getRmBlobs();
         // Update with addStaging and rmStaging info
-        for (String filePath : addStage.keySet()) {
-            res.put(filePath, addStage.get(filePath));
-        }
+        res.putAll(stage.getAddBlobs());
         for (String filePath: rmStage) {
             res.remove(filePath);
         }
         return res;
+    }
+
+    /** Update current MergeCommit with conflict info and removed info. */
+    public void updateMergeCommitFile(Map<String, String> updateMerge, Map<String, String> delMerge) {
+        assert this.mergeParentID != null;
+        this.savedBlobs.putAll(updateMerge);
+        for (String s : delMerge.keySet()) {
+            this.savedBlobs.remove(s);
+        }
     }
 
     /** Formatter helper function to return String format of timeStamp. */
@@ -104,8 +111,8 @@ public class Commit implements Serializable {
         return savedBlobs.containsKey(filePath);
     }
 
-    /** Remove file in current Commit, file is untracked after this operation. */
-    public void rmFileInCommit(String filePath) {
+    /** Untrack file in current Commit, file is untracked after this operation. */
+    public void untrackFileInCommit(String filePath) {
         this.savedBlobs.remove(filePath);
     }
     
@@ -115,7 +122,12 @@ public class Commit implements Serializable {
             return this.savedBlobs.get(filePath);
         }
         // File not found in this commit
-        return null;
+        return "";
+    }
+
+    /** Get HashSet of parents' CommitID and check in BFS merging. */
+    public Set<String> getParents() {
+        return new HashSet<>(parents);
     }
 
     /** Return private ID. */
@@ -128,6 +140,10 @@ public class Commit implements Serializable {
         return firstParentID;
     }
 
+    /** Return mergeParentID to BFS in merge. */
+    public String getMergeParentID() {
+        return mergeParentID;
+    }
     /** Return private timeStamp. */
     public String getTimeStamp() {
         return timeStamp;
@@ -143,15 +159,13 @@ public class Commit implements Serializable {
         return new TreeMap<>(savedBlobs);
     }
 
-    /** Return all parents CommitID. */
-    public List<String> getParents() {
-        return new ArrayList<>(parents);
-    }
-
     /** Helper function to print log info of this commit. */
     public void printLogInfo() {
         System.out.println("===");
         System.out.println("commit " + this.getID());
+        if (this.mergeParentID != null) {
+            System.out.println("Merge: " + firstParentID.substring(0, 7) + " " + mergeParentID.substring(0, 7));
+        }
         System.out.println("Date: " + this.getTimeStamp());
         System.out.println(this.getMessage() + '\n');
     }
