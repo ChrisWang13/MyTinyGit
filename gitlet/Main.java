@@ -42,6 +42,7 @@ public class Main {
                     System.out.println("Incorrect operands.");
                 }
             }
+            case "merge" -> Repository.merge(args[1]);
         }
     }
 }

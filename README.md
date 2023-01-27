@@ -1,5 +1,7 @@
 # MyTinyGit
-MyTinyGit is a version control system which mimics some basic features of `Git`, as well as some additional features.
+MyTinyGit is a version control system which mimics some 
+basic features of `Git`, as well as some additional 
+features.
 
 ## Gernal Design Idea
 
@@ -70,8 +72,14 @@ $ echo 1a410efbd13591db07496601ebc7a059dd55cfe9 > .git/refs/heads/master
 $ git update-ref refs/heads/master 1a410efbd13591db07496601ebc7a059dd55cfe9
 ```
 
+### `gitlet merge` 
+1. Difference between a tree and a graph: Tree has root, therefore transverse from root to
+get to any node; Graph has paths. Start from a random node and dfs or bfs all the way with 
+distance v.
+2. Find LCA (lowest(Regard to commit tree root: Initial commit) / latest common ancestor) for any two commits object.
 
-### Refractor (2023.1.23 Update)
+
+### Refractor (2023.1.27 Update)
 1. In `Staging` class, refractor storeBlobs from `List` that store `Blob` object to HashMap
 that map between <Blob pathName, SHA1-hash of Blob>. Easy to delete!
 2. Still need Blob to quick read byte for diff or quick view file contents
@@ -89,6 +97,10 @@ that map between <Blob pathName, SHA1-hash of Blob>. Easy to delete!
     Use `Utils.sha1(blob.getFilePath())` as staging file entry name(String), easy to overwrite if file is already staged.
 4. Be careful with object referencing! Return copied new object.
 5. Use `TrieIndex` to speed up its search for abbreviated `commitID`
+6. When check for existence in blobID, use `getOrDefault` to define value if key does not exist.
+7. `MergeCommit` has its `saveBlobs`. Its contents are only relevant with `parentCommit` and `curStage`. Checkout files are staged and `add`.
+8. Use bfs to get LCA Commit.
+
 ## Debugging
 1. IntelliJ provides a feature called “remote JVM debugging” that will allow you to add breakpoints that trigger during integration tests.
 2. The script that will connect to the IntelliJ JVM is `runner.py`
@@ -104,7 +116,7 @@ that map between <Blob pathName, SHA1-hash of Blob>. Easy to delete!
 ```shell
 make
 cd /home/chris/Desktop/MyTinyGit/testing
-python3 runner.py --debug samples/test29-bad-checkouts-err.in
+python3 runner.py --debug samples/test36a-merge-parent2.in
 ```
 ## Testing
 1. Print my output in testing folder
@@ -117,7 +129,7 @@ make check TESTER_FLAGS="--verbose"
 ```shell
 make 
 cd /home/chris/Desktop/MyTinyGit/testing
-python3 tester.py --verbose samples/test29-bad-checkouts-err.in
+python3 tester.py --verbose samples/test36a-merge-parent2.in
 ```
 
 ## Count total work

@@ -3,6 +3,7 @@ package gitlet;
 import java.io.File;
 import java.io.Serializable;
 import java.util.*;
+import java.nio.charset.StandardCharsets;
 
 import static gitlet.Utils.*;
 
@@ -118,6 +119,18 @@ public class Repository {
         return Utils.readObject(commitFile, Commit.class);
     }
 
+    /** Helper function to return Commit with given branchName. */
+    private static Commit getCommit(String branchName) {
+        // File reference to branch
+        File ref = join(HEADS_DIR, branchName);
+        // Read from ref about branch commitID
+        String brCommitID = Utils.readObject(ref, String.class);
+        // Search for commit File in object folder
+        File brCommitFile = join(OBJ_DIR, brCommitID);
+        // Return latest commit class in current branch
+        return Utils.readObject(brCommitFile, Commit.class);
+    }
+
     private static boolean checkAddIsNeeded(String fileName) {
         File addFile = getFileFromCWD(fileName);
         String filePath = CWD + "/" + fileName;
@@ -166,11 +179,9 @@ public class Repository {
             System.out.println("No changes added to the commit.");
             System.exit(0);
         }
-
         Commit curCommit = getCurCommit();
-        String parentID = curCommit.getID();
         // Create new commit with init info: parent Commit id
-        Commit newCommit = new Commit(curStage, parentID, message);
+        Commit newCommit = new Commit(curCommit, null, curStage, message);
         // Save current CommitID to branchFile
         newCommit.saveCommit(curBranchName);
         // TrieIndex for object Commit in obj folder
@@ -187,7 +198,7 @@ public class Repository {
     public static void log() {
         curCommit = getCurCommit();
         // Get parentID and open file iteratively
-        while (!curCommit.getFirstParentID().isEmpty()) {
+        while (!curCommit.getFirstParentID().equals("")) {
             // Print info
             curCommit.printLogInfo();
             // Update curCommit with parent id file in object folder
@@ -195,10 +206,9 @@ public class Repository {
             File parent = join(OBJ_DIR, pid);
             curCommit = Utils.readObject(parent, Commit.class);
         }
-        if (curCommit.getFirstParentID().isEmpty()) {
-            // Only initial commit, print info
-            curCommit.printLogInfo();
-        }
+        // Only initial commit, print info
+        assert (curCommit.getFirstParentID().equals(""));
+        curCommit.printLogInfo();
     }
 
     /** gitlet rm function. */
@@ -213,9 +223,9 @@ public class Repository {
             // 1. Remove file from Staging area if in current Staging
             curStage.rmFileInStaging(filePath);
         } else if (curCommit.isFileInCommit(filePath)) {
-            // 2. Remove file if it is in current commit (tracked in MASTER_PTR)
-            // Stage the file for removal
+            // 2. Remove file if it is in current commit, stage the file for removal
             curStage.rmFileInStaging(filePath);
+            curCommit.untrackFileInCommit(filePath);
             // If removed before with unix rm cmd
             if (rmFile.exists()) {
                 rmFile.delete();
@@ -233,7 +243,7 @@ public class Repository {
         // Prefix of filePath
         String cwd = CWD.getPath();
         System.out.println("=== Branches ===");
-        ArrayList<String> branchList= new ArrayList<>(Utils.plainFilenamesIn(HEADS_DIR));
+        ArrayList<String> branchList = new ArrayList<>(Utils.plainFilenamesIn(HEADS_DIR));
         curBranchName = getCurBranchName();
         for (String br : branchList) {
             if (br.equals(curBranchName)) {
@@ -243,97 +253,91 @@ public class Repository {
             System.out.println(br);
         }
         System.out.println();
+
         // 2. Staged file in current Staging area
-        // Use set to print in lexicographic order
         curStage = getCurStage();
-        // Careful with reference!
-        Set<String> addFilePathSet = curStage.getAddBlobs().keySet();
+        Set<String> addSet = curStage.getAddBlobs().keySet();
         System.out.println("=== Staged Files ===");
-        for (String addFilePath: addFilePathSet) {
-            if (addFilePath.startsWith(cwd)) {
-                System.out.println(addFilePath.substring(cwd.length() + 1));
-            }
+        for (String filePath: addSet) {
+            System.out.println(filePath.substring(cwd.length() + 1));
         }
         System.out.println();
-        // 3. Removed files from current staging romove area
+
+        // 3. Removed files from current staging remove area
         curCommit = getCurCommit();
-        Set<String> rmFilePathSet = curStage.getRmBlobs();
+        Set<String> rmSet = curStage.getRmBlobs();
         System.out.println("=== Removed Files ===");
-        for (String rmFilePath: rmFilePathSet) {
-            if (rmFilePath.startsWith(cwd)) {
-                System.out.println(rmFilePath.substring(cwd.length() + 1));
-            }
+        for (String filePath: rmSet) {
+            System.out.println(filePath.substring(cwd.length() + 1));
         }
         System.out.println();
 
-        // 4. Only with regard to curCommit except removed files
+        // 4. Modifications Not Staged For Commit
         System.out.println("=== Modifications Not Staged For Commit ===");
-        // setAll contains all except new created files, which is handled in untracked.
-        Set<String> setAll = curCommit.getSavedBlobs().keySet();
-        // setRm contains files to be removed
-        Set<String> setRm = curStage.getRmBlobs();
-        // Not staged for removal
-        setAll.removeAll(setRm);
-
-        File[] dirListing = CWD.listFiles();
-        if (dirListing != null) {
-            for (File child: dirListing) {
-                // Ignore subdirectory like .gitlet
-                if (child.isDirectory()) {
-                    continue;
+        // commitAll contains files to be tracked
+        Map<String, String> commitAll = curCommit.getSavedBlobs();
+        // setAdd contains files to be staged
+        Map<String, String> stageAdd = curStage.getAddBlobs();
+        Set<String> stageRm = curStage.getRmBlobs();
+        // Read cwd fileName
+        ArrayList<String> cwdFileName = new ArrayList<>(Utils.plainFilenamesIn(CWD));
+        Set<String> modified = new TreeSet<>();
+        Set<String> deleted = new TreeSet<>();
+        // Case 1 and 4
+        for (String filePath : commitAll.keySet()) {
+            String fileName = filePath.substring(cwd.length() + 1);
+            File f = join(CWD, fileName);
+            if (f.exists()) {
+                String curBlobID = Utils.sha1(Utils.readContents(f), filePath);
+                if (!commitAll.get(filePath).equals(curBlobID) && !stageAdd.containsKey(filePath)) {
+                    // case 1: Tracked in current Commit, contents changed with prev commit, but not staged
+                    modified.add(fileName);
                 }
-                String childFilePath = child.getPath();
-                // If child is not in set, then it should be "deleted"
-                setAll.remove(childFilePath);
-                // Compare blobID of file in current Commit of this file
-                String curCommitBlobID = curCommit.getCommitFileBlobID(childFilePath);
-                String curBlobID = Utils.sha1(Utils.readContents(child),
-                        childFilePath);
-                if (curCommitBlobID != null && !curCommitBlobID.equals(curBlobID)) {
-                    // tracked: curCommitBlobID != null
-                    System.out.println(childFilePath.substring(cwd.length() + 1) + "(modified)");
+            }
+            else if (!stageRm.contains(filePath)) {
+                // case 4: Tracked in current Commit, File not in CWD, Not staged for removal
+                deleted.add(fileName);
+            }
+        }
+        // Case 2 and 3
+        for (String filePath : stageAdd.keySet()) {
+            String fileName = filePath.substring(cwd.length() + 1);
+            File f = join(CWD, fileName);
+            if (f.exists()) {
+                String curBlobID = Utils.sha1(Utils.readContents(f), filePath);
+                if (!stageAdd.get(filePath).equals(curBlobID)) {
+                    // case 2: In current Staging, File in CWD, contents changed
+                    modified.add(fileName);
                 }
+            }
+            else {
+                // case 3: In current Staging, File not in CWD
+                deleted.add(fileName);
             }
         }
 
-        for (String s : setAll) {
-            System.out.println(s.substring(cwd.length() + 1) + "(deleted)");
+        for (String s : modified) {
+            System.out.println(s + "(modified)");
+        }
+        for (String s : deleted) {
+            System.out.println(s + "(deleted)");
         }
         System.out.println();
 
         // 5. Files without gitlet knowledge, only for files in CWD.
         System.out.println("=== Untracked Files ===");
-        if (dirListing != null) {
-            for (File child: dirListing) {
-                // Ignore subdirectory like .gitlet
-                if (child.isDirectory()) {
-                    continue;
-                }
-                String childFilePath = child.getPath();
-                // Get back to current head
-                curCommit = getCurCommit();
-                // Check tracked?
-                boolean isTracked = curCommit.isFileInCommit(childFilePath);
-                while (!curCommit.getFirstParentID().isEmpty()) {
-                    if (isTracked) {
-                        break;
-                    }
-                    isTracked = curCommit.isFileInCommit(childFilePath);
-                    // Update curCommit with parent id file in object folder
-                    String pid = curCommit.getFirstParentID();
-                    File parent = join(OBJ_DIR, pid);
-                    curCommit = Utils.readObject(parent, Commit.class);
-                }
-                // Check in staging?
-                boolean isStaging = curStage.isFileInStaging(childFilePath);
-                if (!isTracked && !isStaging) {
-                    System.out.println(childFilePath.substring(cwd.length() + 1));
-                }
+        for (String fileName : cwdFileName) {
+            String filePath = CWD + "/" + fileName;
+            // Check tracked?
+            boolean isTracked = curCommit.isFileInCommit(filePath);
+            // Check in staging?
+            boolean isStaging = curStage.isFileInStaging(filePath);
+            if (!isTracked && !isStaging) {
+                System.out.println(fileName);
             }
         }
         System.out.println();
     }
-
 
     /** gitlet branch function. */
     public static void branch(String branchName) {
@@ -362,19 +366,31 @@ public class Repository {
             System.out.println("No need to checkout the current branch.");
             System.exit(0);
         }
+        // Fail case: File untracked in current branch and would be overwritten by checkout
+        // Real git do not clear staging area, and stage all files that is checkout out
+        // Real git won't do checkout that would overwrite or undo changes on staged files
+        Set<String> curBrFileList = getCurCommit().getSavedBlobs().keySet();
+        List<String> list = Utils.plainFilenamesIn(CWD);
+        for (String fileName: list) {
+            String filePath = CWD + "/" + fileName;
+            if (!curBrFileList.contains(filePath)) {
+                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                System.exit(0);
+            }
+        }
     }
 
     /** gitlet checkout function.
      *  Files are all tracked to branch. Three use cases are:
-     *      oldBranch           newBranch
+     *      curBranch           newBranch
      *      File1               File1 (Overwrite File1 in cwd)
      *      File2               File2 is null (If File2 exist in cwd, delete File2)
      *      File3 is null       File3 (Overwrite File3 in cwd)
      * */
     public static void checkoutBranch(String branchName) {
         checkoutBranchIsFailed(branchName);
-        // Old branchFileList
-        Set<String> oldBrFileList = getCurCommit().getSavedBlobs().keySet();
+        // current branchFileList
+        Set<String> curBrFileList = getCurCommit().getSavedBlobs().keySet();
         // Update branch with new branch(branchName)
         Utils.writeObject(HEAD, branchName);
         // New branchFileList
@@ -386,13 +402,16 @@ public class Repository {
             overWriteFileWithCommit(getCurCommit(), f.getName());
         }
         // Case 2, delete Set(old - new) file
-        for (String path : oldBrFileList) {
+        for (String path : curBrFileList) {
             File f = new File(path);
             // Files are not tracked in checkout branch. Delete the file if in cwd.
             if (!newBrFileList.contains(path) && f.exists()) {
                 f.delete();
             }
         }
+        // Clear staging area, unless checkout branch is current branch
+        curStage = getCurStage();
+        curStage.rmStagingArea();
     }
 
     /** Helper function to overwrite file with given commit. */
@@ -432,4 +451,129 @@ public class Repository {
         // Pass any commit
         overWriteFileWithCommit(commit, fileName);
     }
+
+    /** Helper function to get parent CommitID in distance order. */
+    private static List<String> getBfsList(Commit commit) {
+        Queue<String> q = new ArrayDeque<>();
+        List<String> res = new ArrayList<>();
+        Commit cur = commit;
+        res.add(cur.getID());
+        while (!cur.getFirstParentID().equals("")) {
+            String p1 = cur.getFirstParentID();
+            String p2 = cur.getMergeParentID();
+            if (p1 != null && !q.contains(p1)) {
+                q.add(p1);
+            }
+            if (p2 != null && !q.contains(p2)) {
+                q.add(p2);
+            }
+            String head = q.poll();
+            res.add(head);
+            File f = join(OBJ_DIR, head);
+            cur = Utils.readObject(f, Commit.class);
+        }
+        return res;
+    }
+
+    /** Helper function to get split point Commit object. */
+    private static Commit getSplitPointCommit(Commit a, Commit b) {
+        List<String> parentA = getBfsList(a);
+        Set<String> parentB = b.getParents();
+        String resID = null;
+        for (String pid : parentA) {
+            if (parentB.contains(pid)) {
+                resID = pid;
+                break;
+            }
+        }
+        // Read commit with resID
+        File commitFile = Utils.join(OBJ_DIR, resID);
+        return readObject(commitFile, Commit.class);
+    }
+
+    /** gitlet merge function. */
+    public static void merge(String branchName) {
+        // Special merge case 1: Split point is same as given branch
+        // Special merge case 2: Fast forward merge
+        Commit splitPoint = getSplitPointCommit(getCurCommit(), getCommit(branchName));
+        curCommit = getCurCommit();
+        curStage = getCurStage();
+        curBranchName = getCurBranchName();
+        Commit brCommit = getCommit(branchName);
+        if (splitPoint.getID().equals(brCommit.getID())) {
+            System.out.println("Given branch is an ancestor of the current branch.");
+            System.exit(0);
+        }
+        if (splitPoint.getID().equals(getCurCommit().getID())) {
+            checkoutBranch(branchName);
+            System.out.println("Current branch fast-forwarded.");
+            System.exit(0);
+        }
+        // Update Update tracked file in mergeCommit.
+        Map<String, String> updateMerge = new HashMap<>();
+        Map<String, String> delMerge = new HashMap<>();
+        // Use set to union all fileNames in splitCommit, curCommit and brCommit
+        Set<String> all = new HashSet<>();
+        all.addAll(splitPoint.getSavedBlobs().keySet());
+        all.addAll(curCommit.getSavedBlobs().keySet());
+        all.addAll(brCommit.getSavedBlobs().keySet());
+
+        for (String filePath : all) {
+            File f = new File(filePath);
+            String cwd = CWD.getPath();
+            String fileName = filePath.substring(cwd.length() + 1);
+            // If found in history, check if blob match (modified? deleted?) in other commit
+            String splitID = splitPoint.getCommitFileBlobID(filePath);
+            String curID = curCommit.getCommitFileBlobID(filePath);
+            String brID = brCommit.getCommitFileBlobID(filePath);
+            if (splitID.equals(curID)) {
+                // Case 6: remove the file and untrack the file
+                // Present in splitCommit and unmodified at curCommit, absent in brCommit
+                if (brID.equals("")) {
+                    delMerge.put(filePath, curID);
+                    f.delete();
+                    curCommit.untrackFileInCommit(filePath);
+                    curCommit.saveCommit(curBranchName);
+                } else {
+                    // Checkout the file in brCommit (Not empty) and stage the file
+                    // case 1: Present in splitCommit, not modified in curCommit, modified in brCommit
+                    // Case 5: Not present in splitCommit, not present in curCommit, present in brCommit
+                    checkoutCommitID(brCommit.getID(), fileName);
+                    add(fileName);
+                }
+            } else if (!splitID.equals(brID) && !curID.equals(brID)) {
+                // !splitID.equals(curID) && !splitID.equals(brID) && !curID.equals(brID)
+                // curCommit and brCommit are modified in different way
+                String curContents = "";
+                String brContents = "";
+
+                if (curID != "") {
+                    File blobFile = join(OBJ_DIR, curID);
+                    Blob blob = Utils.readObject(blobFile, Blob.class);
+                    curContents = new String(blob.getContents(), StandardCharsets.UTF_8);
+                }
+                if (brID != "") {
+                    File blobFile = join(OBJ_DIR, brID);
+                    Blob blob = Utils.readObject(blobFile, Blob.class);
+                    brContents = new String(blob.getContents(), StandardCharsets.UTF_8);
+                }
+                String conflictContents = "<<<<<<< HEAD" + "\n" + curContents  + "=======" + "\n"
+                       + brContents + ">>>>>>>" + "\n";
+                Utils.writeContents(f, conflictContents);
+                Blob blob = new Blob(f);
+                updateMerge.put(filePath, blob.getBlobID());
+                add(fileName);
+                System.out.println("Encountered a merge conflict.");
+            }
+        }
+        String commitMsg = "Merged " + branchName + " into " + getCurBranchName() + ".";
+        // Make merge commit
+        Commit mergeCommit = new Commit(curCommit, brCommit, curStage, commitMsg);
+        // Update tracked file in mergeCommit.
+        mergeCommit.updateMergeCommitFile(updateMerge, delMerge);
+        // Save current CommitID to branchFile
+        mergeCommit.saveCommit(curBranchName);
+        curStage.rmStagingArea();
+    }
+
 }
