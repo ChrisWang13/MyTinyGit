@@ -3,6 +3,7 @@ package gitlet;
 import java.io.File;
 import java.io.Serializable;
 import java.util.*;
+import java.nio.charset.StandardCharsets;
 
 import static gitlet.Utils.*;
 
@@ -180,7 +181,7 @@ public class Repository {
         }
         Commit curCommit = getCurCommit();
         // Create new commit with init info: parent Commit id
-        Commit newCommit = new Commit(curCommit, curStage, message);
+        Commit newCommit = new Commit(curCommit, null, curStage, message);
         // Save current CommitID to branchFile
         newCommit.saveCommit(curBranchName);
         // TrieIndex for object Commit in obj folder
@@ -197,7 +198,7 @@ public class Repository {
     public static void log() {
         curCommit = getCurCommit();
         // Get parentID and open file iteratively
-        while (curCommit.getParents().size() >= 2) {
+        while (!curCommit.getFirstParentID().equals("")) {
             // Print info
             curCommit.printLogInfo();
             // Update curCommit with parent id file in object folder
@@ -205,10 +206,9 @@ public class Repository {
             File parent = join(OBJ_DIR, pid);
             curCommit = Utils.readObject(parent, Commit.class);
         }
-        if (curCommit.getParents().size() == 1) {
-            // Only initial commit, print info
-            curCommit.printLogInfo();
-        }
+        // Only initial commit, print info
+        assert (curCommit.getFirstParentID().equals(""));
+        curCommit.printLogInfo();
     }
 
     /** gitlet rm function. */
@@ -225,7 +225,7 @@ public class Repository {
         } else if (curCommit.isFileInCommit(filePath)) {
             // 2. Remove file if it is in current commit, stage the file for removal
             curStage.rmFileInStaging(filePath);
-            curCommit.rmFileInCommit(filePath);
+            curCommit.untrackFileInCommit(filePath);
             // If removed before with unix rm cmd
             if (rmFile.exists()) {
                 rmFile.delete();
@@ -272,7 +272,7 @@ public class Repository {
         }
         System.out.println();
 
-        // 4.
+        // 4. Modifications Not Staged For Commit
         System.out.println("=== Modifications Not Staged For Commit ===");
         // commitAll contains files to be tracked
         Map<String, String> commitAll = curCommit.getSavedBlobs();
@@ -452,15 +452,37 @@ public class Repository {
         overWriteFileWithCommit(commit, fileName);
     }
 
+    /** Helper function to get parent CommitID in distance order. */
+    private static List<String> getBfsList(Commit commit) {
+        Queue<String> q = new ArrayDeque<>();
+        List<String> res = new ArrayList<>();
+        Commit cur = commit;
+        res.add(cur.getID());
+        while (!cur.getFirstParentID().equals("")) {
+            String p1 = cur.getFirstParentID();
+            String p2 = cur.getMergeParentID();
+            if (p1 != null && !q.contains(p1)) {
+                q.add(p1);
+            }
+            if (p2 != null && !q.contains(p2)) {
+                q.add(p2);
+            }
+            String head = q.poll();
+            res.add(head);
+            File f = join(OBJ_DIR, head);
+            cur = Utils.readObject(f, Commit.class);
+        }
+        return res;
+    }
+
     /** Helper function to get split point Commit object. */
     private static Commit getSplitPointCommit(Commit a, Commit b) {
-        List<String> parentA = a.getParents();
-        List<String> parentB = b.getParents();
+        List<String> parentA = getBfsList(a);
+        Set<String> parentB = b.getParents();
         String resID = null;
         for (String pid : parentA) {
             if (parentB.contains(pid)) {
                 resID = pid;
-            } else {
                 break;
             }
         }
@@ -471,10 +493,87 @@ public class Repository {
 
     /** gitlet merge function. */
     public static void merge(String branchName) {
-        // TODO Special merge case 1: Split point is same as given branch
-        // TODO Special merge case 2: Fast forward merge
+        // Special merge case 1: Split point is same as given branch
+        // Special merge case 2: Fast forward merge
         Commit splitPoint = getSplitPointCommit(getCurCommit(), getCommit(branchName));
         curCommit = getCurCommit();
+        curStage = getCurStage();
+        curBranchName = getCurBranchName();
         Commit brCommit = getCommit(branchName);
+        if (splitPoint.getID().equals(brCommit.getID())) {
+            System.out.println("Given branch is an ancestor of the current branch.");
+            System.exit(0);
+        }
+        if (splitPoint.getID().equals(getCurCommit().getID())) {
+            checkoutBranch(branchName);
+            System.out.println("Current branch fast-forwarded.");
+            System.exit(0);
+        }
+        // Update Update tracked file in mergeCommit.
+        Map<String, String> updateMerge = new HashMap<>();
+        Map<String, String> delMerge = new HashMap<>();
+        // Use set to union all fileNames in splitCommit, curCommit and brCommit
+        Set<String> all = new HashSet<>();
+        all.addAll(splitPoint.getSavedBlobs().keySet());
+        all.addAll(curCommit.getSavedBlobs().keySet());
+        all.addAll(brCommit.getSavedBlobs().keySet());
+
+        for (String filePath : all) {
+            File f = new File(filePath);
+            String cwd = CWD.getPath();
+            String fileName = filePath.substring(cwd.length() + 1);
+            // If found in history, check if blob match (modified? deleted?) in other commit
+            String splitID = splitPoint.getCommitFileBlobID(filePath);
+            String curID = curCommit.getCommitFileBlobID(filePath);
+            String brID = brCommit.getCommitFileBlobID(filePath);
+            if (splitID.equals(curID)) {
+                // Case 6: remove the file and untrack the file
+                // Present in splitCommit and unmodified at curCommit, absent in brCommit
+                if (brID.equals("")) {
+                    delMerge.put(filePath, curID);
+                    f.delete();
+                    curCommit.untrackFileInCommit(filePath);
+                    curCommit.saveCommit(curBranchName);
+                } else {
+                    // Checkout the file in brCommit (Not empty) and stage the file
+                    // case 1: Present in splitCommit, not modified in curCommit, modified in brCommit
+                    // Case 5: Not present in splitCommit, not present in curCommit, present in brCommit
+                    checkoutCommitID(brCommit.getID(), fileName);
+                    add(fileName);
+                }
+            } else if (!splitID.equals(brID) && !curID.equals(brID)) {
+                // !splitID.equals(curID) && !splitID.equals(brID) && !curID.equals(brID)
+                // curCommit and brCommit are modified in different way
+                String curContents = "";
+                String brContents = "";
+
+                if (curID != "") {
+                    File blobFile = join(OBJ_DIR, curID);
+                    Blob blob = Utils.readObject(blobFile, Blob.class);
+                    curContents = new String(blob.getContents(), StandardCharsets.UTF_8);
+                }
+                if (brID != "") {
+                    File blobFile = join(OBJ_DIR, brID);
+                    Blob blob = Utils.readObject(blobFile, Blob.class);
+                    brContents = new String(blob.getContents(), StandardCharsets.UTF_8);
+                }
+                String conflictContents = "<<<<<<< HEAD" + "\n" + curContents  + "=======" + "\n"
+                       + brContents + ">>>>>>>" + "\n";
+                Utils.writeContents(f, conflictContents);
+                Blob blob = new Blob(f);
+                updateMerge.put(filePath, blob.getBlobID());
+                add(fileName);
+                System.out.println("Encountered a merge conflict.");
+            }
+        }
+        String commitMsg = "Merged " + branchName + " into " + getCurBranchName() + ".";
+        // Make merge commit
+        Commit mergeCommit = new Commit(curCommit, brCommit, curStage, commitMsg);
+        // Update tracked file in mergeCommit.
+        mergeCommit.updateMergeCommitFile(updateMerge, delMerge);
+        // Save current CommitID to branchFile
+        mergeCommit.saveCommit(curBranchName);
+        curStage.rmStagingArea();
     }
+
 }
